@@ -1,0 +1,10 @@
+openai-whisper
+pyaudio
+pyttsx3
+keyboard
+python-dotenv
+requests
+ollama
+numpy
+torch
+torchaudio
