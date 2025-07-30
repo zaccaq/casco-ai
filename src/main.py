@@ -14,6 +14,8 @@ from datetime import datetime
 from speech_handler import WhisperSpeechHandler
 from claude_api import OllamaAssistant
 from audio_manager import AudioManager
+from websocket_server import start_websocket_server_thread
+from mobile_server import start_mobile_app_server
 from config.settings import DEBUG, WAKE_WORDS
 
 
@@ -28,6 +30,10 @@ class JarvisHelmet:
             self.ai_assistant = OllamaAssistant()
             self.audio_manager = AudioManager()
 
+            # Avvia server per app mobile
+            self.mobile_server = start_mobile_app_server(port=8766)
+            self.websocket_thread = start_websocket_server_thread(self, port=8765)
+
             # Stato del sistema
             self.is_active = False
             self.is_running = True
@@ -38,6 +44,11 @@ class JarvisHelmet:
             self.wake_words_detected = 0
 
             print("✅ Jarvis Helmet inizializzato con successo!")
+
+            if self.mobile_server:
+                print("📱 App mobile disponibile:")
+                print(f"   🌐 http://{self.mobile_server.get_local_ip()}:8766")
+                print("   💡 Apri questo URL sul tuo smartphone!")
 
         except Exception as e:
             print(f"❌ Errore inizializzazione: {e}")
@@ -52,6 +63,7 @@ class JarvisHelmet:
         print("   - Premi 's' per statistiche")
         print("   - Premi 't' per test microfono")
         print("   - Premi 'm' per cambiare modello AI")
+        print("   - Premi 'w' per aprire app mobile")
         print(f"   - Parole di attivazione: {', '.join(WAKE_WORDS)}")
         print(f"   - Modello AI: {self.ai_assistant.model}")
         print("\n🎧 Sistema in ascolto...\n")
@@ -110,6 +122,10 @@ class JarvisHelmet:
 
             if keyboard.is_pressed('m'):
                 self._change_ai_model()
+                time.sleep(0.5)
+
+            if keyboard.is_pressed('w'):
+                self._open_mobile_app()
                 time.sleep(0.5)
 
         except Exception as e:
@@ -224,6 +240,19 @@ class JarvisHelmet:
         except Exception as e:
             print(f"❌ Errore cambio modello: {e}")
 
+    def _open_mobile_app(self):
+        """Apre l'app mobile nel browser"""
+        try:
+            import webbrowser
+            if self.mobile_server:
+                url = f"http://localhost:8766"
+                webbrowser.open(url)
+                print(f"🌐 App mobile aperta: {url}")
+            else:
+                print("❌ Server app mobile non disponibile")
+        except Exception as e:
+            print(f"❌ Errore apertura app mobile: {e}")
+
     async def _shutdown(self):
         """Arresta il sistema in modo pulito"""
         print("🔄 Arresto sistema in corso...")
@@ -232,6 +261,10 @@ class JarvisHelmet:
             # Ferma tutti i componenti
             self.speech_handler.stop_all()
             self.audio_manager.cleanup()
+
+            # Ferma server mobile
+            if hasattr(self, 'mobile_server') and self.mobile_server:
+                self.mobile_server.stop_server()
 
             # Mostra statistiche finali
             self._show_statistics()

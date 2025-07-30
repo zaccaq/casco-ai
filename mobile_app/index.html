@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#1a1a2e">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Jarvis Helmet">
+
+    <title>Jarvis Helmet Controller</title>
+
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%2300d4ff'/%3E%3Ctext x='50' y='65' text-anchor='middle' font-size='40' fill='white'%3E🤖%3C/text%3E%3C/svg%3E">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f4c75 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px 0;
+        }
+
+        .logo {
+            font-size: 4rem;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00d4ff; }
+            to { text-shadow: 0 0 30px #00d4ff, 0 0 40px #00d4ff; }
+        }
+
+        .title {
+            font-size: 1.8rem;
+            font-weight: 300;
+            margin-bottom: 5px;
+            background: linear-gradient(45deg, #00d4ff, #ffffff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .status-dot.online { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .status-dot.offline { background: #ff4757; box-shadow: 0 0 10px #ff4757; }
+        .status-dot.pending { background: #ffa502; box-shadow: 0 0 10px #ffa502; }
+
+        .control-section {
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: linear-gradient(45deg, #00d4ff, #ffffff);
+            margin-right: 10px;
+            border-radius: 2px;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-btn {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(255, 255, 255, 0.1));
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-height: 80px;
+            backdrop-filter: blur(10px);
+        }
+
+        .control-btn:hover, .control-btn:active {
+            transform: translateY(-2px);
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.4), rgba(255, 255, 255, 0.2));
+            border-color: rgba(0, 212, 255, 0.6);
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+
+        .control-btn.primary {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border-color: #00d4ff;
+            font-size: 1.1rem;
+            min-height: 60px;
+        }
+
+        .control-btn.primary:hover {
+            background: linear-gradient(135deg, #00b8e6, #0088bb);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.4);
+        }
+
+        .control-btn .icon {
+            font-size: 1.5rem;
+        }
+
+        .voice-button {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            font-size: 2.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            box-shadow: 0 8px 25px rgba(0, 212, 255, 0.3);
+        }
+
+        .voice-button:hover, .voice-button.active {
+            transform: scale(1.1);
+            box-shadow: 0 12px 35px rgba(0, 212, 255, 0.5);
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        }
+
+        .voice-button.listening {
+            animation: pulse 1.5s ease-in-out infinite;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .settings-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background: #00d4ff;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-switch.active::after {
+            left: 28px;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 12px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 350px;
+            width: 90%;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .modal-title {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+
+        .modal-text {
+            margin-bottom: 20px;
+            opacity: 0.8;
+            line-height: 1.5;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .modal-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .modal-btn.primary {
+            background: #00d4ff;
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 15px;
+            }
+
+            .control-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .voice-button {
+                width: 100px;
+                height: 100px;
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="connection-status" id="connectionStatus">
+        <span class="status-dot offline"></span>
+        Disconnesso
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <div class="logo">🤖</div>
+            <div class="title">JARVIS HELMET</div>
+            <div class="subtitle">Controller Mobile</div>
+        </div>
+
+        <!-- Status Card -->
+        <div class="status-card">
+            <div class="status-indicator">
+                <div style="display: flex; align-items: center;">
+                    <div class="status-dot offline" id="helmetStatus"></div>
+                    <span>Stato Casco</span>
+                </div>
+                <span id="helmetStatusText">Offline</span>
+            </div>
+            <div class="status-indicator">
+                <div style="display: flex; align-items: center;">
+                    <div class="status-dot offline" id="aiStatus"></div>
+                    <span>AI Assistant</span>
+                </div>
+                <span id="aiStatusText">Disconnesso</span>
+            </div>
+            <div class="status-indicator">
+                <div style="display: flex; align-items: center;">
+                    <div class="status-dot offline" id="audioStatus"></div>
+                    <span>Sistema Audio</span>
+                </div>
+                <span id="audioStatusText">Inattivo</span>
+            </div>
+        </div>
+
+        <!-- Voice Control -->
+        <div class="control-section">
+            <div class="section-title">🎤 Controllo Vocale</div>
+            <div style="text-align: center;">
+                <button class="voice-button" id="voiceButton">
+                    🎙️
+                </button>
+                <div style="margin-top: 10px; opacity: 0.7;">
+                    Tocca per attivare comando vocale
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Controls -->
+        <div class="control-section">
+            <div class="section-title">⚡ Controlli Rapidi</div>
+            <div class="control-grid">
+                <button class="control-btn primary" onclick="activateJarvis()">
+                    <span class="icon">🚀</span>
+                    Attiva Jarvis
+                </button>
+                <button class="control-btn" onclick="testMicrophone()">
+                    <span class="icon">🎤</span>
+                    Test Mic
+                </button>
+                <button class="control-btn" onclick="showStatistics()">
+                    <span class="icon">📊</span>
+                    Statistiche
+                </button>
+                <button class="control-btn" onclick="emergencyStop()">
+                    <span class="icon">🛑</span>
+                    Stop
+                </button>
+                <button class="control-btn" onclick="changeModel()">
+                    <span class="icon">🤖</span>
+                    Cambia AI
+                </button>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="control-section">
+            <div class="section-title">📈 Statistiche</div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value" id="commandsCount">0</div>
+                    <div class="stat-label">Comandi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="wakeWordsCount">0</div>
+                    <div class="stat-label">Wake Words</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="uptime">00:00</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="aiModel">-</div>
+                    <div class="stat-label">Modello AI</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div class="control-section">
+            <div class="section-title">⚙️ Impostazioni</div>
+            <div class="settings-panel">
+                <div class="setting-item">
+                    <span>Debug Mode</span>
+                    <div class="toggle-switch" onclick="toggleSetting('debug')"></div>
+                </div>
+                <div class="setting-item">
+                    <span>Auto-attivazione</span>
+                    <div class="toggle-switch active" onclick="toggleSetting('autoActivation')"></div>
+                </div>
+                <div class="setting-item">
+                    <span>Notifiche Audio</span>
+                    <div class="toggle-switch active" onclick="toggleSetting('audioNotifications')"></div>
+                </div>
+                <div class="setting-item">
+                    <span>Modalità Risparmio</span>
+                    <div class="toggle-switch" onclick="toggleSetting('powerSaving')"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">Titolo</div>
+            <div class="modal-text" id="modalText">Testo del modal</div>
+            <div class="modal-buttons">
+                <button class="modal-btn secondary" onclick="closeModal()">Chiudi</button>
+                <button class="modal-btn primary" id="modalConfirm" onclick="closeModal()">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // WebSocket connection per comunicazione con il casco
+        let ws = null;
+        let isConnected = false;
+        let isListening = false;
+        let stats = {
+            commands: 0,
+            wakeWords: 0,
+            startTime: Date.now(),
+            aiModel: 'llama3.2:1b'
+        };
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+            connectToHelmet();
+            startStatsUpdate();
+
+            // PWA install prompt
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js');
+            }
+        });
+
+        function initializeApp() {
+            // Update initial stats
+            updateStatistics();
+
+            // Voice button event
+            const voiceButton = document.getElementById('voiceButton');
+            voiceButton.addEventListener('touchstart', startVoiceCommand);
+            voiceButton.addEventListener('touchend', endVoiceCommand);
+            voiceButton.addEventListener('mousedown', startVoiceCommand);
+            voiceButton.addEventListener('mouseup', endVoiceCommand);
+
+            showToast('App inizializzata - Connessione in corso...');
+        }
+
+        function connectToHelmet() {
+            try {
+                // Simula connessione WebSocket al casco
+                // In produzione: ws = new WebSocket('ws://192.168.1.100:8765');
+
+                setTimeout(() => {
+                    isConnected = true;
+                    updateConnectionStatus();
+                    updateSystemStatus('online');
+                    showToast('✅ Connesso al casco Jarvis!');
+                }, 2000);
+
+            } catch (error) {
+                console.error('Errore connessione:', error);
+                showToast('❌ Errore connessione al casco');
+            }
+        }
+
+        function updateConnectionStatus() {
+            const statusEl = document.getElementById('connectionStatus');
+            const dot = statusEl.querySelector('.status-dot');
+
+            if (isConnected) {
+                dot.className = 'status-dot online';
+                statusEl.innerHTML = '<span class="status-dot online"></span>Connesso';
+            } else {
+                dot.className = 'status-dot offline';
+                statusEl.innerHTML = '<span class="status-dot offline"></span>Disconnesso';
+            }
+        }
+
+        function updateSystemStatus(status) {
+            const helmetStatus = document.getElementById('helmetStatus');
+            const helmetStatusText = document.getElementById('helmetStatusText');
+            const aiStatus = document.getElementById('aiStatus');
+            const aiStatusText = document.getElementById('aiStatusText');
+            const audioStatus = document.getElementById('audioStatus');
+            const audioStatusText = document.getElementById('audioStatusText');
+
+            if (status === 'online') {
+                helmetStatus.className = 'status-dot online';
+                helmetStatusText.textContent = 'Online';
+                aiStatus.className = 'status-dot online';
+                aiStatusText.textContent = 'Attivo';
+                audioStatus.className = 'status-dot online';
+                audioStatusText.textContent = 'Pronto';
+            } else {
+                helmetStatus.className = 'status-dot offline';
+                helmetStatusText.textContent = 'Offline';
+                aiStatus.className = 'status-dot offline';
+                aiStatusText.textContent = 'Disconnesso';
+                audioStatus.className = 'status-dot offline';
+                audioStatusText.textContent = 'Inattivo';
+            }
+        }
+
+        function startVoiceCommand() {
+            if (!isConnected) {
+                showToast('❌ Casco non connesso');
+                return;
+            }
+
+            isListening = true;
+            const voiceButton = document.getElementById('voiceButton');
+            voiceButton.classList.add('listening');
+            voiceButton.innerHTML = '⏹️';
+
+            showToast('🎤 In ascolto...');
+
+            // Simula invio comando al casco
+            if (ws) {
+                ws.send(JSON.stringify({type: 'start_listening'}));
+            }
+        }
+
+        function endVoiceCommand() {
+            if (!isListening) return;
+
+            isListening = false;
+            const voiceButton = document.getElementById('voiceButton');
+            voiceButton.classList.remove('listening');
+            voiceButton.innerHTML = '🎙️';
+
+            stats.commands++;
+            updateStatistics();
+
+            showToast('📝 Comando inviato');
+
+            // Simula fine comando
+            if (ws) {
+                ws.send(JSON.stringify({type: 'end_listening'}));
+            }
+        }
+
+        function activateJarvis() {
+            if (!isConnected) {
+                showToast('❌ Casco non connesso');
+                return;
+            }
+
+            showToast('🚀 Jarvis attivato');
+            stats.wakeWords++;
+            updateStatistics();
+
+            // Simula attivazione
+            if (ws) {
+                ws.send(JSON.stringify({type: 'activate_jarvis'}));
+            }
+        }
+
+        function testMicrophone() {
+            showModal('🎤 Test Microfono', 'Avvio test del microfono. Il casco registrerà per 3 secondi e riprodurrà il risultato.', 'Avvia Test');
+
+            if (ws) {
+                ws.send(JSON.stringify({type: 'test_microphone'}));
+            }
+        }
+
+        function showStatistics() {
+            const uptime = formatUptime(Date.now() - stats.startTime);
+            showModal('📊 Statistiche Dettagliate',
+                `Comandi processati: ${stats.commands}\n` +
+                `Wake words rilevate: ${stats.wakeWords}\n` +
+                `Tempo attivo: ${uptime}\n` +
+                `Modello AI: ${stats.aiModel}\n` +
+                `Stato connessione: ${isConnected ? 'Online' : 'Offline'}`,
+                'Chiudi'
+            );
+        }
+
+        function emergencyStop() {
+            showModal('🛑 Stop di Emergenza', 'Vuoi fermare tutti i processi del casco Jarvis?', 'Ferma Tutto');
+
+            document.getElementById('modalConfirm').onclick = function() {
+                if (ws) {
+                    ws.send(JSON.stringify({type: 'emergency_stop'}));
+                }
+                showToast('🛑 Sistema fermato');
+                updateSystemStatus('offline');
+                closeModal();
+            };
+        }
+
+        function changeModel() {
+            showModal('🤖 Cambia Modello AI', 'Vuoi visualizzare i modelli AI disponibili e cambiare quello attuale?', 'Mostra Modelli');
+
+            if (ws) {
+                ws.send(JSON.stringify({type: 'list_models'}));
+            }
+        }
+
+        function toggleSetting(setting) {
+            const toggle = event.target;
+            toggle.classList.toggle('active');
+
+            const isActive = toggle.classList.contains('active');
+            showToast(`⚙️ ${setting}: ${isActive ? 'Attivo' : 'Disattivo'}`);
+
+            if (ws) {
+                ws.send(JSON.stringify({
+                    type: 'setting_change',
+                    setting: setting,
+                    value: isActive
+                }));
+            }
+        }
+
+        function updateStatistics() {
+            document.getElementById('commandsCount').textContent = stats.commands;
+            document.getElementById('wakeWordsCount').textContent = stats.wakeWords;
+            document.getElementById('uptime').textContent = formatUptime(Date.now() - stats.startTime);
+            document.getElementById('aiModel').textContent = stats.aiModel.split(':')[0];
+        }
+
+        function startStatsUpdate() {
+            setInterval(updateStatistics, 1000);
+        }
+
+        function formatUptime(ms) {
+            const seconds = Math.floor(ms / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+
+            if (hours > 0) {
+                return `${hours}:${(minutes % 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
+            }
+            return `${minutes}:${(seconds % 60).toString().padStart(2, '0')}`;
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function showModal(title, text, confirmText) {
+            document.getElementById('modalTitle').textContent = title;
+            document.getElementById('modalText').textContent = text;
+            document.getElementById('modalConfirm').textContent = confirmText;
+            document.getElementById('modal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('modal').style.display = 'none';
+        }
+
+        // PWA Installation
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            deferredPrompt = e;
+            showToast('📱 App installabile! Tocca per aggiungere alla home screen');
+        });
+
+        // Handle WebSocket messages (quando implementato)
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'status_update':
+                    updateSystemStatus(data.status);
+                    break;
+                case 'command_processed':
+                    stats.commands++;
+                    showToast('✅ Comando processato');
+                    break;
+                case 'wake_word_detected':
+                    stats.wakeWords++;
+                    showToast('🎯 Wake word rilevata');
+                    break;
+                case 'error':
+                    showToast('❌ ' + data.message);
+                    break;
+            }
+        }
+    </script>
+</body>
+</html>
