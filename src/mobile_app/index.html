@@ -89,30 +89,9 @@
             margin-right: 10px;
         }
 
-        .status-dot.online {
-            background: #00ff88;
-            box-shadow: 0 0 10px #00ff88;
-            animation: pulse-green 2s infinite;
-        }
-        .status-dot.offline {
-            background: #ff4757;
-            box-shadow: 0 0 10px #ff4757;
-        }
-        .status-dot.pending {
-            background: #ffa502;
-            box-shadow: 0 0 10px #ffa502;
-            animation: pulse-orange 1s infinite;
-        }
-
-        @keyframes pulse-green {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-
-        @keyframes pulse-orange {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
+        .status-dot.online { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+        .status-dot.offline { background: #ff4757; box-shadow: 0 0 10px #ff4757; }
+        .status-dot.pending { background: #ffa502; box-shadow: 0 0 10px #ffa502; }
 
         .control-section {
             margin-bottom: 30px;
@@ -210,11 +189,11 @@
         }
 
         .voice-button.listening {
-            animation: pulse-record 1s ease-in-out infinite;
+            animation: pulse 1.5s ease-in-out infinite;
             background: linear-gradient(135deg, #ff6b6b, #ee5a52);
         }
 
-        @keyframes pulse-record {
+        @keyframes pulse {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
@@ -247,7 +226,7 @@
             opacity: 0.7;
         }
 
-        .connection-indicator {
+        .connection-status {
             position: fixed;
             top: 20px;
             right: 20px;
@@ -257,15 +236,6 @@
             font-size: 0.8rem;
             backdrop-filter: blur(10px);
             z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .connection-indicator .status-dot {
-            width: 8px;
-            height: 8px;
-            margin: 0;
         }
 
         .toast {
@@ -281,30 +251,9 @@
             opacity: 0;
             transition: all 0.3s ease;
             z-index: 1000;
-            max-width: 80%;
-            text-align: center;
         }
 
         .toast.show {
-            opacity: 1;
-        }
-
-        .monitoring-indicator {
-            position: fixed;
-            top: 70px;
-            right: 20px;
-            background: rgba(0, 212, 255, 0.2);
-            border: 1px solid rgba(0, 212, 255, 0.5);
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 0.7rem;
-            backdrop-filter: blur(10px);
-            z-index: 999;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .monitoring-indicator.active {
             opacity: 1;
         }
 
@@ -323,51 +272,19 @@
                 font-size: 2rem;
             }
         }
-
-        /* Gesture feedback */
-        .gesture-feedback {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 212, 255, 0.8);
-            color: white;
-            padding: 20px;
-            border-radius: 15px;
-            font-size: 1.2rem;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            z-index: 1001;
-            pointer-events: none;
-        }
-
-        .gesture-feedback.show {
-            opacity: 1;
-        }
     </style>
 </head>
 <body>
-    <!-- Connection Status -->
-    <div class="connection-indicator" id="connectionStatus">
-        <div class="status-dot offline"></div>
-        <span>Disconnesso</span>
-    </div>
-
-    <!-- Monitoring Indicator -->
-    <div class="monitoring-indicator" id="monitoringIndicator">
-        🎧 In ascolto continuo
-    </div>
-
-    <!-- Gesture Feedback -->
-    <div class="gesture-feedback" id="gestureFeedback">
-        🚀 Jarvis Attivato!
+    <div class="connection-status" id="connectionStatus">
+        <span class="status-dot offline"></span>
+        Disconnesso
     </div>
 
     <div class="container">
         <div class="header">
             <div class="logo">🤖</div>
             <div class="title">JARVIS HELMET</div>
-            <div class="subtitle">Controller Mobile Avanzato</div>
+            <div class="subtitle">Controller Mobile</div>
         </div>
 
         <!-- Status Card -->
@@ -389,7 +306,7 @@
             <div class="status-indicator">
                 <div style="display: flex; align-items: center;">
                     <div class="status-dot offline" id="audioStatus"></div>
-                    <span>Monitoraggio Audio</span>
+                    <span>Sistema Audio</span>
                 </div>
                 <span id="audioStatusText">Inattivo</span>
             </div>
@@ -403,7 +320,7 @@
                     🎙️
                 </button>
                 <div style="margin-top: 10px; opacity: 0.7;">
-                    Tieni premuto per comando diretto
+                    Tocca per attivare comando vocale
                 </div>
             </div>
         </div>
@@ -433,7 +350,7 @@
 
         <!-- Statistics -->
         <div class="control-section">
-            <div class="section-title">📈 Statistiche Live</div>
+            <div class="section-title">📈 Statistiche</div>
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value" id="commandsCount">0</div>
@@ -459,14 +376,10 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        // WebSocket connection con riconnessione automatica
+        // WebSocket connection per comunicazione con il casco
         let ws = null;
         let isConnected = false;
         let isListening = false;
-        let reconnectAttempts = 0;
-        let maxReconnectAttempts = 10;
-        let reconnectDelay = 1000;
-
         let stats = {
             commands: 0,
             wakeWords: 0,
@@ -474,142 +387,58 @@
             aiModel: 'llama3.2:1b'
         };
 
-        // Gesture detection
-        let touchStartX, touchStartY, touchStartTime;
-
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             initializeApp();
-            setupGestureControls();
 
             // PWA install prompt
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('sw.js').catch(e =>
-                    console.log('SW registration failed:', e)
-                );
+                navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration failed'));
             }
         });
 
         function initializeApp() {
+            // Update initial stats
             updateStatistics();
-            setupVoiceButton();
-            connectToHelmet();
-            startStatsUpdate();
-            showToast('🚀 App inizializzata - Connessione in corso...');
-        }
 
-        function setupVoiceButton() {
+            // Voice button events
             const voiceButton = document.getElementById('voiceButton');
+            voiceButton.addEventListener('touchstart', startVoiceCommand);
+            voiceButton.addEventListener('touchend', endVoiceCommand);
+            voiceButton.addEventListener('mousedown', startVoiceCommand);
+            voiceButton.addEventListener('mouseup', endVoiceCommand);
 
-            // Touch events for mobile
-            voiceButton.addEventListener('touchstart', handleVoiceStart, {passive: false});
-            voiceButton.addEventListener('touchend', handleVoiceEnd, {passive: false});
-
-            // Mouse events for desktop
-            voiceButton.addEventListener('mousedown', handleVoiceStart);
-            voiceButton.addEventListener('mouseup', handleVoiceEnd);
-
-            // Prevent context menu
-            voiceButton.addEventListener('contextmenu', e => e.preventDefault());
-        }
-
-        function setupGestureControls() {
-            // Swipe gestures
-            document.addEventListener('touchstart', handleTouchStart, {passive: true});
-            document.addEventListener('touchend', handleTouchEnd, {passive: true});
-
-            // Prevent zoom on double tap
-            let lastTouchEnd = 0;
-            document.addEventListener('touchend', function (event) {
-                const now = (new Date()).getTime();
-                if (now - lastTouchEnd <= 300) {
-                    event.preventDefault();
-                }
-                lastTouchEnd = now;
-            }, false);
-        }
-
-        function handleTouchStart(e) {
-            const touch = e.touches[0];
-            touchStartX = touch.clientX;
-            touchStartY = touch.clientY;
-            touchStartTime = Date.now();
-        }
-
-        function handleTouchEnd(e) {
-            if (!touchStartX || !touchStartY) return;
-
-            const touch = e.changedTouches[0];
-            const deltaX = touch.clientX - touchStartX;
-            const deltaY = touch.clientY - touchStartY;
-            const deltaTime = Date.now() - touchStartTime;
-
-            // Only recognize quick swipes
-            if (deltaTime > 300) return;
-
-            const minSwipeDistance = 100;
-            const maxVerticalDistance = 50;
-
-            // Right swipe = Activate Jarvis
-            if (deltaX > minSwipeDistance && Math.abs(deltaY) < maxVerticalDistance) {
-                showGestureFeedback('🚀 Jarvis Attivato!');
-                activateJarvis();
-            }
-            // Left swipe = Emergency stop
-            else if (deltaX < -minSwipeDistance && Math.abs(deltaY) < maxVerticalDistance) {
-                showGestureFeedback('🛑 Stop di Emergenza!');
-                emergencyStop();
-            }
-
-            // Reset values
-            touchStartX = touchStartY = null;
-        }
-
-        function showGestureFeedback(message) {
-            const feedback = document.getElementById('gestureFeedback');
-            feedback.textContent = message;
-            feedback.classList.add('show');
-            setTimeout(() => feedback.classList.remove('show'), 1500);
+            // Auto-connect
+            setTimeout(connectToHelmet, 1000);
         }
 
         function connectToHelmet() {
             try {
-                // Build WebSocket URL based on current location
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.hostname}:8765`;
+                const wsUrl = `ws://${window.location.hostname}:8765`;
+                console.log('Connessione WebSocket:', wsUrl);
 
-                console.log('Connecting to:', wsUrl);
                 ws = new WebSocket(wsUrl);
 
                 ws.onopen = function() {
                     isConnected = true;
-                    reconnectAttempts = 0;
                     updateConnectionStatus();
                     updateSystemStatus('online');
-                    updateMonitoringIndicator(true);
                     showToast('✅ Connesso al casco Jarvis!');
                 };
 
                 ws.onmessage = function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        handleWebSocketMessage(data);
-                    } catch (e) {
-                        console.error('Error parsing WebSocket message:', e);
-                    }
+                    const data = JSON.parse(event.data);
+                    handleWebSocketMessage(data);
                 };
 
                 ws.onclose = function() {
                     isConnected = false;
                     updateConnectionStatus();
                     updateSystemStatus('offline');
-                    updateMonitoringIndicator(false);
+                    showToast('❌ Connessione persa');
 
-                    if (reconnectAttempts < maxReconnectAttempts) {
-                        setTimeout(attemptReconnect, reconnectDelay);
-                    } else {
-                        showToast('❌ Connessione persa definitivamente');
-                    }
+                    // Riconnessione automatica dopo 5 secondi
+                    setTimeout(connectToHelmet, 5000);
                 };
 
                 ws.onerror = function(error) {
@@ -618,31 +447,21 @@
                 };
 
             } catch (error) {
-                console.error('Connection error:', error);
+                console.error('Errore connessione:', error);
                 showToast('❌ Impossibile connettersi al casco');
-                setTimeout(attemptReconnect, reconnectDelay);
             }
-        }
-
-        function attemptReconnect() {
-            reconnectAttempts++;
-            const delay = Math.min(reconnectDelay * Math.pow(2, reconnectAttempts - 1), 30000);
-
-            showToast(`🔄 Riconnessione... (${reconnectAttempts}/${maxReconnectAttempts})`);
-            setTimeout(connectToHelmet, delay);
         }
 
         function updateConnectionStatus() {
             const statusEl = document.getElementById('connectionStatus');
             const dot = statusEl.querySelector('.status-dot');
-            const text = statusEl.querySelector('span');
 
             if (isConnected) {
                 dot.className = 'status-dot online';
-                text.textContent = 'Connesso';
+                statusEl.innerHTML = '<span class="status-dot online"></span>Connesso';
             } else {
                 dot.className = 'status-dot offline';
-                text.textContent = 'Disconnesso';
+                statusEl.innerHTML = '<span class="status-dot offline"></span>Disconnesso';
             }
         }
 
@@ -653,10 +472,10 @@
                 audio: { dot: document.getElementById('audioStatus'), text: document.getElementById('audioStatusText') }
             };
 
-            Object.entries(elements).forEach(([key, el]) => {
+            Object.values(elements).forEach(el => {
                 if (status === 'online') {
                     el.dot.className = 'status-dot online';
-                    el.text.textContent = key === 'audio' ? 'Monitoraggio' : 'Attivo';
+                    el.text.textContent = 'Attivo';
                 } else {
                     el.dot.className = 'status-dot offline';
                     el.text.textContent = 'Offline';
@@ -664,16 +483,7 @@
             });
         }
 
-        function updateMonitoringIndicator(active) {
-            const indicator = document.getElementById('monitoringIndicator');
-            if (active) {
-                indicator.classList.add('active');
-            } else {
-                indicator.classList.remove('active');
-            }
-        }
-
-        function handleVoiceStart(e) {
+        function startVoiceCommand(e) {
             e.preventDefault();
             if (!isConnected) {
                 showToast('❌ Casco non connesso');
@@ -685,11 +495,11 @@
             voiceButton.classList.add('listening');
             voiceButton.innerHTML = '⏹️';
 
-            showToast('🎤 In ascolto diretto...');
+            showToast('🎤 In ascolto...');
             sendToHelmet({type: 'start_listening'});
         }
 
-        function handleVoiceEnd(e) {
+        function endVoiceCommand(e) {
             e.preventDefault();
             if (!isListening) return;
 
@@ -723,23 +533,14 @@
                 return;
             }
 
-            showToast('🎤 Test microfono avviato...');
+            showToast('🎤 Test microfono avviato');
             sendToHelmet({type: 'test_microphone'});
         }
 
         function showStatistics() {
             const uptime = formatUptime(Date.now() - stats.startTime);
-            const connectedClients = isConnected ? '1+' : '0';
-
-            const statsText = `📊 STATISTICHE DETTAGLIATE\n\n` +
-                `⏱️ Tempo attivo: ${uptime}\n` +
-                `🎯 Wake words: ${stats.wakeWords}\n` +
-                `📝 Comandi: ${stats.commands}\n` +
-                `🤖 Modello AI: ${stats.aiModel}\n` +
-                `🌐 Connessione: ${isConnected ? 'Online' : 'Offline'}\n` +
-                `📱 Client connessi: ${connectedClients}`;
-
-            alert(statsText);
+            const statsText = `Comandi: ${stats.commands}\nWake Words: ${stats.wakeWords}\nUptime: ${uptime}\nModello: ${stats.aiModel}\nConnessione: ${isConnected ? 'Online' : 'Offline'}`;
+            alert('📊 Statistiche Dettagliate\n\n' + statsText);
         }
 
         function emergencyStop() {
@@ -752,111 +553,47 @@
                 sendToHelmet({type: 'emergency_stop'});
                 showToast('🛑 Stop di emergenza inviato');
                 updateSystemStatus('offline');
-                updateMonitoringIndicator(false);
             }
         }
 
         function sendToHelmet(data) {
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify(data));
-            } else {
-                showToast('❌ Connessione WebSocket non disponibile');
             }
         }
 
         function handleWebSocketMessage(data) {
-            console.log('WebSocket message:', data);
-
             switch(data.type) {
                 case 'connection_established':
                     showToast('🎉 ' + data.message);
                     if (data.stats) updateStatsFromServer(data.stats);
                     break;
-
                 case 'jarvis_activated':
                     showToast('🚀 ' + data.message);
                     break;
-
-                case 'listening_started':
-                    showToast('🎤 ' + data.message);
-                    break;
-
                 case 'command_processed':
                     showToast('✅ Comando processato');
-                    if (data.stats) updateStatsFromServer(data.stats);
                     break;
-
                 case 'wake_word_detected':
-                    showToast('🎯 Wake word rilevata!');
+                    showToast('🎯 Wake word rilevata');
                     stats.wakeWords++;
                     updateStatistics();
                     break;
-
                 case 'microphone_test_started':
                     showToast('🎤 ' + data.message);
                     break;
-
-                case 'microphone_test_completed':
-                    showToast('✅ ' + data.message);
-                    break;
-
-                case 'microphone_test_failed':
-                    showToast('❌ ' + data.message);
-                    break;
-
-                case 'emergency_stop_executed':
-                    showToast('🛑 ' + data.message);
-                    updateSystemStatus('offline');
-                    updateMonitoringIndicator(false);
-                    break;
-
-                case 'models_list':
-                    showModelsDialog(data.models, data.current_model);
-                    break;
-
                 case 'stats_update':
                     if (data.stats) updateStatsFromServer(data.stats);
                     break;
-
-                case 'setting_changed':
-                    showToast(`⚙️ ${data.setting}: ${data.value ? 'Attivo' : 'Disattivo'}`);
-                    break;
-
-                case 'voice_command_result':
-                    showToast('💬 Risposta: ' + (data.response || 'Comando elaborato'));
-                    break;
-
-                case 'pong':
-                    // Heartbeat response
-                    break;
-
                 default:
-                    console.log('Unknown message type:', data.type);
+                    console.log('Messaggio ricevuto:', data);
             }
-        }
-
-        function showModelsDialog(models, currentModel) {
-            let message = '🤖 MODELLI AI DISPONIBILI:\n\n';
-            models.forEach((model, index) => {
-                const current = model === currentModel ? ' (ATTUALE)' : '';
-                message += `${index + 1}. ${model}${current}\n`;
-            });
-
-            message += '\n💡 Per cambiare modello, usa il computer principale.';
-            alert(message);
         }
 
         function updateStatsFromServer(serverStats) {
-            if (serverStats.commands_processed !== undefined) {
-                stats.commands = serverStats.commands_processed;
-            }
-            if (serverStats.wake_words_detected !== undefined) {
-                stats.wakeWords = serverStats.wake_words_detected;
-            }
-            if (serverStats.ai_model) {
-                stats.aiModel = serverStats.ai_model;
-            }
-
+            stats.commands = serverStats.commands_processed || stats.commands;
+            stats.wakeWords = serverStats.wake_words_detected || stats.wakeWords;
+            stats.aiModel = serverStats.ai_model || stats.aiModel;
             updateStatistics();
         }
 
@@ -865,17 +602,6 @@
             document.getElementById('wakeWordsCount').textContent = stats.wakeWords;
             document.getElementById('uptime').textContent = formatUptime(Date.now() - stats.startTime);
             document.getElementById('aiModel').textContent = stats.aiModel.split(':')[0];
-        }
-
-        function startStatsUpdate() {
-            setInterval(() => {
-                updateStatistics();
-
-                // Send periodic ping to keep connection alive
-                if (isConnected) {
-                    sendToHelmet({type: 'ping'});
-                }
-            }, 1000);
         }
 
         function formatUptime(ms) {
@@ -899,101 +625,8 @@
             }, 3000);
         }
 
-        // PWA Installation
-        let deferredPrompt;
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-
-            // Show install button or prompt
-            setTimeout(() => {
-                if (confirm('📱 Vuoi installare Jarvis Helmet come app?')) {
-                    deferredPrompt.prompt();
-                    deferredPrompt.userChoice.then((choiceResult) => {
-                        if (choiceResult.outcome === 'accepted') {
-                            showToast('✅ App installata con successo!');
-                        }
-                        deferredPrompt = null;
-                    });
-                }
-            }, 5000);
-        });
-
-        // Handle app installation
-        window.addEventListener('appinstalled', (evt) => {
-            showToast('🎉 Jarvis Helmet installato!');
-        });
-
-        // Handle visibility change
-        document.addEventListener('visibilitychange', () => {
-            if (!document.hidden && !isConnected) {
-                // App became visible and we're disconnected, try to reconnect
-                connectToHelmet();
-            }
-        });
-
-        // Prevent zoom on iOS
-        document.addEventListener('gesturestart', function (e) {
-            e.preventDefault();
-        });
-
-        // Handle back button on Android
-        window.addEventListener('popstate', function(e) {
-            if (isListening) {
-                handleVoiceEnd(e);
-            }
-        });
-
-        // Keyboard shortcuts for desktop testing
-        document.addEventListener('keydown', function(e) {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                if (!isListening) {
-                    handleVoiceStart(e);
-                } else {
-                    handleVoiceEnd(e);
-                }
-            } else if (e.key === 'j' || e.key === 'J') {
-                activateJarvis();
-            } else if (e.key === 't' || e.key === 'T') {
-                testMicrophone();
-            } else if (e.key === 's' || e.key === 'S') {
-                showStatistics();
-            }
-        });
-
-        // Network status monitoring
-        window.addEventListener('online', () => {
-            showToast('🌐 Connessione ripristinata');
-            if (!isConnected) {
-                connectToHelmet();
-            }
-        });
-
-        window.addEventListener('offline', () => {
-            showToast('📡 Connessione persa');
-        });
-
-        // Battery status (if supported)
-        if ('getBattery' in navigator) {
-            navigator.getBattery().then(function(battery) {
-                if (battery.level < 0.2) {
-                    showToast('🔋 Batteria bassa, considera il risparmio energetico');
-                }
-            });
-        }
-
-        // Performance monitoring
-        if ('performance' in window) {
-            window.addEventListener('load', () => {
-                setTimeout(() => {
-                    const perfData = performance.getEntriesByType('navigation')[0];
-                    if (perfData && perfData.loadEventEnd - perfData.loadEventStart > 3000) {
-                        console.warn('Slow app load detected');
-                    }
-                }, 0);
-            });
-        }
+        // Prevent context menu on touch devices
+        document.addEventListener('contextmenu', e => e.preventDefault());
     </script>
 </body>
 </html>

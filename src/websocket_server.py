@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-WebSocket Server per comunicazione tra app mobile e casco Jarvis
+WebSocket Server per comunicazione tra app mobile e casco Jarvis - VERSIONE CORRETTA
 """
 
 import asyncio
@@ -26,7 +26,7 @@ class JarvisWebSocketServer:
             'wake_words_detected': 0,
             'start_time': datetime.now(),
             'ai_model': 'llama3.2:1b',
-            'status': 'offline'
+            'status': 'online'
         }
 
         if DEBUG:
@@ -36,7 +36,7 @@ class JarvisWebSocketServer:
         """Avvia il server WebSocket"""
         try:
             self.server = await websockets.serve(
-                self.handle_client,
+                self.handle_client,  # ← FIX: Rimosso 'path' parameter
                 host,
                 port,
                 ping_interval=20,
@@ -59,8 +59,8 @@ class JarvisWebSocketServer:
                 print(f"[WEBSOCKET] Errore avvio server: {e}")
             raise
 
-    async def handle_client(self, websocket, path):
-        """Gestisce connessione client"""
+    async def handle_client(self, websocket):  # ← FIX: Rimosso parameter 'path'
+        """Gestisce connessione client - VERSIONE CORRETTA"""
         client_ip = websocket.remote_address[0]
 
         try:
@@ -148,6 +148,10 @@ class JarvisWebSocketServer:
             # Simula attivazione wake word
             self.stats['wake_words_detected'] += 1
 
+            # Notifica sistema principale se disponibile
+            if hasattr(self.main_system, '_on_mobile_wake_word'):
+                await self.main_system._on_mobile_wake_word()
+
             await self.send_to_client(websocket, {
                 'type': 'jarvis_activated',
                 'message': 'Jarvis attivato con successo'
@@ -167,9 +171,8 @@ class JarvisWebSocketServer:
         })
 
         # Se collegato al sistema principale, avvia ascolto
-        if self.main_system and hasattr(self.main_system, 'speech_handler'):
-            # Simula comando (in produzione colleghiamo al vero sistema)
-            asyncio.create_task(self.simulate_voice_command(websocket))
+        if self.main_system and hasattr(self.main_system, '_on_mobile_listening_start'):
+            await self.main_system._on_mobile_listening_start()
 
     async def handle_end_listening(self, websocket):
         """Gestisce fine ascolto comando vocale"""
@@ -188,9 +191,22 @@ class JarvisWebSocketServer:
             'message': 'Test microfono avviato'
         })
 
-        # Simula test microfono
+        # Esegui test microfono se sistema principale disponibile
         if self.main_system and hasattr(self.main_system, 'speech_handler'):
-            asyncio.create_task(self.simulate_microphone_test(websocket))
+            def test_mic():
+                try:
+                    self.main_system.speech_handler.test_microphone(3)
+                    asyncio.create_task(self.send_to_client(websocket, {
+                        'type': 'microphone_test_completed',
+                        'message': 'Test microfono completato con successo'
+                    }))
+                except Exception as e:
+                    asyncio.create_task(self.send_to_client(websocket, {
+                        'type': 'microphone_test_failed',
+                        'message': f'Test microfono fallito: {str(e)}'
+                    }))
+
+            threading.Thread(target=test_mic, daemon=True).start()
 
     async def handle_emergency_stop(self, websocket):
         """Gestisce stop di emergenza"""
@@ -208,13 +224,14 @@ class JarvisWebSocketServer:
 
     async def handle_list_models(self, websocket):
         """Gestisce richiesta lista modelli AI"""
-        # Simula lista modelli (in produzione collegare a Ollama)
-        models = [
-            'llama3.2:1b',
-            'llama3.2:3b',
-            'qwen2.5:1.5b',
-            'mistral:7b'
-        ]
+        models = ['llama3.2:1b', 'llama3.2:3b', 'qwen2.5:1.5b', 'mistral:7b']
+
+        # Se sistema principale disponibile, usa modelli reali
+        if self.main_system and hasattr(self.main_system, 'ai_assistant'):
+            try:
+                models = self.main_system.ai_assistant.list_available_models()
+            except:
+                pass
 
         await self.send_to_client(websocket, {
             'type': 'models_list',
@@ -235,34 +252,6 @@ class JarvisWebSocketServer:
             'setting': setting,
             'value': value,
             'message': f'Impostazione {setting} aggiornata'
-        })
-
-    async def simulate_voice_command(self, websocket):
-        """Simula elaborazione comando vocale"""
-        # Simula ritardo elaborazione
-        await asyncio.sleep(2)
-
-        await self.send_to_client(websocket, {
-            'type': 'voice_command_result',
-            'message': 'Comando vocale elaborato: "Ciao Jarvis, come stai?"',
-            'response': 'Ciao! Sto funzionando perfettamente. Tutti i sistemi sono operativi.'
-        })
-
-    async def simulate_microphone_test(self, websocket):
-        """Simula test microfono"""
-        # Simula test di 3 secondi
-        for i in range(3):
-            await asyncio.sleep(1)
-            await self.send_to_client(websocket, {
-                'type': 'microphone_test_progress',
-                'progress': (i + 1) * 33,
-                'message': f'Test in corso... {i + 1}/3'
-            })
-
-        await self.send_to_client(websocket, {
-            'type': 'microphone_test_completed',
-            'message': 'Test microfono completato con successo',
-            'result': 'Microfono funzionante - Audio rilevato correttamente'
         })
 
     async def send_to_client(self, websocket, data):
@@ -302,6 +291,10 @@ class JarvisWebSocketServer:
             await asyncio.sleep(5)  # Ogni 5 secondi
 
             if self.connected_clients:
+                # Aggiorna stats dal sistema principale se disponibile
+                if self.main_system:
+                    self.update_stats_from_main()
+
                 await self.broadcast_to_all({
                     'type': 'stats_update',
                     'stats': self.get_current_stats()
@@ -313,6 +306,18 @@ class JarvisWebSocketServer:
             'type': 'stats_update',
             'stats': self.get_current_stats()
         })
+
+    def update_stats_from_main(self):
+        """Aggiorna statistiche dal sistema principale"""
+        if self.main_system:
+            try:
+                self.stats['commands_processed'] = self.main_system.commands_processed
+                self.stats['wake_words_detected'] = self.main_system.wake_words_detected
+                if hasattr(self.main_system, 'ai_assistant'):
+                    self.stats['ai_model'] = self.main_system.ai_assistant.model
+                self.stats['status'] = 'online' if self.main_system.is_running else 'offline'
+            except:
+                pass
 
     def get_current_stats(self):
         """Ottieni statistiche attuali"""
@@ -355,8 +360,11 @@ class JarvisWebSocketServer:
             await self.server.wait_closed()
 
         # Disconnetti tutti i client
-        for websocket in self.connected_clients:
-            await websocket.close()
+        for websocket in list(self.connected_clients):
+            try:
+                await websocket.close()
+            except:
+                pass
 
         self.connected_clients.clear()
 
@@ -376,7 +384,9 @@ def start_websocket_server_thread(main_system=None, host='0.0.0.0', port=8765):
             await asyncio.Future()  # Run forever
 
         try:
-            asyncio.run(start())
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(start())
         except Exception as e:
             if DEBUG:
                 print(f"[WEBSOCKET] Errore thread server: {e}")
